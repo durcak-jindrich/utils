@@ -1,0 +1,42 @@
+[project]
+name = "utils-workspace"
+version = "0.1.0"
+requires-python = ">=3.8"
+dependencies = [
+    "diffusers>=0.36.0",
+    "numpy>=1.24.4",
+    "opencv-python>=4.11.0.86",
+    "patch-based-inpainting>=0.0.3",
+    "torch>=2.5.1",
+    "torchaudio>=2.5.1",
+    "torchvision>=0.20.1",
+    "transformers>=4.46.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pytest",
+    "mypy",
+]
+
+# --- Tool Configuration ---
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+# See https://docs.astral.sh/ruff/rules/ for all rules
+select = ["E", "F", "W", "I", "N", "D"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "packages"
+]
+testpaths = [
+    "packages"
+]

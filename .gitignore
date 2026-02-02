@@ -1,0 +1,23 @@
+# Virtual Environment
+.venv/
+.DS_Store
+
+site-packages/
+**/site-packages/
+**/gemini_images
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Tool Caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
