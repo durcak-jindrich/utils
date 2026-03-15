@@ -15,7 +15,11 @@ source .venv/bin/activate
 
 # 3. Install dev tools and prepare the workspace
 uv pip install -e ".[dev]"
-```
+
+# 4. Go to the package folder and install its dependencies
+cd packages/image-compressor
+uv pip install .
+``` 
 
 ## Common Commands
 
