@@ -40,3 +40,8 @@ pythonpath = [
 testpaths = [
     "packages"
 ]
+
+[tool.uv.workspace]
+members = [
+    "packages/local-rag",
+]
