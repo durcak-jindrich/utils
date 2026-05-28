@@ -1,0 +1,20 @@
+[project]
+name = "ai-agent-tutorial"
+version = "0.1.0"
+description = "A tutorial package for building a local AI agent."
+dependencies = [
+    "langchain>=0.3.0",
+    "langchain-groq>=0.2.0",
+    "duckduckgo-search>=8.1.1",
+    "langchain-community>=0.3.0",
+    "python-dotenv>=1.0.1",
+    "langchain-anthropic>=0.2.0",
+]
+requires-python = ">=3.10"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_agent_tutorial"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

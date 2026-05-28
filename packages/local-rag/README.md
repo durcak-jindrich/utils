@@ -2,42 +2,34 @@
 
 A simple CLI tool to search and ask questions about your local markdown documentation using RAG (Retrieval-Augmented Generation).
 
-## Features
-- **Local Embeddings**: Uses `sentence-transformers` for free, local text embedding.
-- **Local Vector Store**: Uses `ChromaDB` for efficient document retrieval.
-- **Gemini 1.5 Flash**: Uses Google's Gemini for high-quality answers based on retrieved context.
-- **Simple CLI**: Easy ingestion and querying.
+This package is part of the `utils-workspace`.
 
 ## Setup
 
 1. **Install dependencies**:
+   From the **root** of the `utils` workspace, run:
    ```bash
-   cd packages/local-rag
    uv sync
    ```
 
 2. **Configure API Key**:
-   Create a `.env` file in `packages/local-rag/` and add your Gemini API key:
+   Create a `.env` file in this directory (`packages/local-rag/`) and add your Gemini API key:
    ```env
    GEMINI_API_KEY=your_api_key_here
    ```
 
 ## Usage
 
+Run commands from the **root** of the workspace. Use the `--directory` (or `-C`) flag to ensure the local `.env` is loaded.
+
 ### 1. Ingest Documentation
-To index your markdown files:
 ```bash
-uv run local-rag ingest /path/to/your/docs
-```
-Use `--clear` to reset the database:
-```bash
-uv run local-rag ingest /path/to/your/docs --clear
+uv run --directory packages/local-rag local-rag ingest /path/to/your/docs
 ```
 
 ### 2. Query
-Ask a question about your docs:
 ```bash
-uv run local-rag query "How do I setup the project?"
+uv run --directory packages/local-rag local-rag query "How do I setup the project?"
 ```
 
 ## Architecture

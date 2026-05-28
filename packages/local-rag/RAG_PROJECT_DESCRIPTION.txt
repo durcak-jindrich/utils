@@ -1,0 +1,26 @@
+This project is a local Retrieval-Augmented Generation (RAG) system designed to query markdown documentation using a Large Language Model (LLM).
+  High-Level Workflow
+   1. Ingestion (ingest command):
+       * Chunking: Ingestor reads markdown files and splits them into smaller, overlapping text segments.
+       * Embedding: AIHandler uses a local SentenceTransformer model to convert these text chunks into high-dimensional vectors (embeddings).
+       * Storage: ChromaManager saves the chunks, their metadata (source path, IDs), and their embeddings into a persistent ChromaDB vector database.
+
+   2. Retrieval & Generation (query command):
+       * Query Embedding: Your question is converted into a vector using the same local embedding model.
+       * Semantic Search: ChromaDB performs a similarity search to find the most relevant document chunks based on the vector distance.
+       * Contextual Answer: The retrieved chunks are sent as "context" to the Gemini API, which generates a natural language answer grounded strictly in your local documents.
+
+  Key Components
+   * ingest.py: Handles file processing and text splitting.
+   * db.py: Manages the ChromaDB lifecycle and vector searches.
+   * ai.py: Interfaces with SentenceTransformer (local) and Google Gemini (remote).
+   * cli.py: Provides the user interface for both phases
+
+
+Chunking Mechanism:
+ * How it works: Ingestor.chunk_text performs a sliding window split on the markdown text. It takes segments of CHUNK_SIZE (1,000 characters by default).
+ * Overlap: It shifts the window by CHUNK_SIZE - CHUNK_OVERLAP (800 characters), creating a 200-character overlap (20% default). Overlap ensures semantic context is preserved across split boundaries.
+
+Context & Prompting:
+ * The "context" consists of the top-k retrieved text chunks (joined by double newlines) and their source paths.
+ * Final Prompt: AIHandler.generate_answer constructs a standard text prompt that injects this context directly. Gemini receives a single "classic" prompt.

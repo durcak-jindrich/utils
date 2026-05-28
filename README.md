@@ -4,41 +4,50 @@ A workspace for Python utility scripts, managed with `uv`.
 
 ## One-Time Setup
 
-Run these commands once to initialize the project.
+Run these commands once to initialize the project and install all workspace members.
 
 ```bash
 # 1. Create the virtual environment
 uv venv
 
-# 2. Activate the environment (do this for every new shell session)
+# 2. Sync the workspace (installs all dependencies for all packages)
+uv sync
+
+# 3. Activate the environment (optional, but recommended for development)
 source .venv/bin/activate
+```
 
-# 3. Install dev tools and prepare the workspace
-uv pip install -e ".[dev]"
+## Running Tools with Local .env Files
 
-# 4. Go to the package folder and install its dependencies
-cd packages/image-compressor
-uv pip install .
-``` 
+To ensure that each tool finds its own `.env` file, use the `--directory` (or `-C`) flag to set the working directory to the package folder.
 
-## Common Commands
+### 1. Local-RAG
+```bash
+uv run --directory packages/local-rag local-rag ingest /path/to/docs
+uv run --directory packages/local-rag local-rag query "My question"
+```
 
-First, ensure your environment is active: `source .venv/bin/activate`
+### 2. Action Item Extractor
+```bash
+uv run --directory packages/action-item-extractor action-item-extractor
+```
+
+### 3. MCP Repo Context
+```bash
+uv run --directory packages/mcp-repo-context mcp-repo-context
+```
+
+## Common Commands (Workspace-wide)
 
 | Task | Command | Description |
 | :--- | :--- | :--- |
-| **Lint Code** | `ruff check .` | Finds errors & style issues. |
-| **Format Code** | `ruff format .` | Automatically formats all code. |
-| **Run Tests** | `pytest` | Runs all tests in the `packages/` directory. |
-| **Run a Script** | `python -m my_tool.main` | Runs the `main.py` of a tool named `my_tool`. |
+| **Lint Code** | `uv run ruff check .` | Finds errors & style issues. |
+| **Format Code** | `uv run ruff format .` | Automatically formats all code. |
+| **Run Tests** | `uv run pytest` | Runs all tests in the `packages/` directory. |
 
 ## How to Add/Update Dependencies
 
 Dependencies belong to individual packages, not the entire workspace.
 
-1.  **Declare:** Add the library (e.g., `"requests"`) to the `dependencies` list in the specific tool's `pyproject.toml` file (e.g., `packages/my-tool/pyproject.toml`).
-2.  **Sync:** Update the virtual environment to match the new requirements.
-    ```bash
-    uv pip sync
-    ```
-This completes the project setup. You are ready to add your first tool to the `packages/` directory.
+1.  **Declare:** Add the library to the `dependencies` list in the specific tool's `pyproject.toml`.
+2.  **Sync:** Update the root virtual environment: `uv sync`.

@@ -21,3 +21,9 @@ build/
 .ruff_cache/
 .pytest_cache/
 .mypy_cache/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+

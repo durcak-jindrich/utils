@@ -11,7 +11,19 @@ dependencies = [
     "torchaudio>=2.5.1",
     "torchvision>=0.20.1",
     "transformers>=4.46.3",
+    "image-compressor",
+    "local-rag",
+    "action-item-extractor",
+    "mcp-repo-context",
+    "ai-agent-tutorial",
 ]
+
+[tool.uv.sources]
+image-compressor = { workspace = true }
+local-rag = { workspace = true }
+action-item-extractor = { workspace = true }
+mcp-repo-context = { workspace = true }
+ai-agent-tutorial = { workspace = true }
 
 [project.optional-dependencies]
 dev = [
@@ -44,4 +56,14 @@ testpaths = [
 [tool.uv.workspace]
 members = [
     "packages/local-rag",
+    "packages/action-item-extractor",
+    "packages/image-compressor",
+    "packages/mcp-repo-context",
+    "packages/meeting-summarizer",
+    "packages/ai-agent-tutorial",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
 ]
