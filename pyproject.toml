@@ -16,6 +16,7 @@ dependencies = [
     "action-item-extractor",
     "mcp-repo-context",
     "ai-agent-tutorial",
+    "mcp-linear-tickets",
 ]
 
 [tool.uv.sources]
@@ -24,6 +25,7 @@ local-rag = { workspace = true }
 action-item-extractor = { workspace = true }
 mcp-repo-context = { workspace = true }
 ai-agent-tutorial = { workspace = true }
+mcp-linear-tickets = { workspace = true }
 
 [project.optional-dependencies]
 dev = [
@@ -61,6 +63,7 @@ members = [
     "packages/mcp-repo-context",
     "packages/meeting-summarizer",
     "packages/ai-agent-tutorial",
+    "packages/mcp-linear-tickets",
 ]
 
 [dependency-groups]

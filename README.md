@@ -37,6 +37,11 @@ uv run --directory packages/action-item-extractor action-item-extractor
 uv run --directory packages/mcp-repo-context mcp-repo-context
 ```
 
+### 4. MCP Linear Tickets
+```bash
+uv run --directory packages/mcp-linear-tickets src/mcp_linear_tickets/main.py
+```
+
 ## Common Commands (Workspace-wide)
 
 | Task | Command | Description |
