@@ -1,0 +1,11 @@
+company,industry,contract_value,renewal_date,account_manager
+Acme Corp,Manufacturing,120000,2026-10-15,Alice Vance
+Globex Corporation,Technology,250000,2026-12-01,Bob Miller
+Initech,Software,85000,2027-01-20,Charlie Smith
+Umbrella Corp,Biotech,500000,2026-08-30,Alice Vance
+Soylent Green,Food & Beverage,95000,2026-11-11,Bob Miller
+Hooli,Technology,750000,2027-03-05,Charlie Smith
+Vehement Capital,Finance,300000,2026-09-01,Alice Vance
+Massive Dynamic,Technology,450000,2027-05-15,Bob Miller
+Stark Industries,Aerospace,600000,2026-07-20,Charlie Smith
+Wayne Enterprises,Conglomerate,900000,2027-02-28,Alice Vance

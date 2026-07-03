@@ -1,0 +1,79 @@
+# RAG Memory Demo
+
+A FastAPI application demonstrating Retrieval-Augmented Generation (RAG) with episodic conversation memory. It allows agents to retrieve company profiles and meeting notes, maintain active chat history, summarize discussions every 5 user messages, and save episodic summaries to a Pinecone memory namespace. A background task runs periodically to summarize and remove stale sessions (>30 minutes of inactivity).
+
+This package is part of the `utils-workspace` monorepo.
+
+## Features
+
+1. **In-Memory Session Store**: Maintains session history, last activity timestamps, and tracks message count.
+2. **FastAPI Endpoints**:
+   - `POST /ingest`: Loads customer data and meeting notes from CSV files, batch-embeds them, and upserts them to Pinecone (under namespace `documents`).
+   - `POST /chat`: Accepts chat messages for a user session, queries relevant documents and past memories, generates replies using ChatGroq (Meta Llama 3.3 70B), and triggers periodic/stale session summarizations.
+3. **Episodic Memory System**:
+   - Periodic summarization every 5 user messages.
+   - Background monitor checks for sessions idle for >30 minutes, summarizes final details, saves to Pinecone namespace `memory`, and purges them.
+   - Summaries are indexed and searchable, allowing future conversations to pull previous session contexts.
+4. **Mock Mode Fallbacks**: Auto-detects placeholder keys and runs fully in-memory with deterministic local embeddings so that tests can be run instantly offline.
+
+## Setup
+
+1. **Install dependencies**:
+   Run the following from the monorepo root to synchronize dependencies:
+   ```bash
+   uv sync
+   ```
+
+2. **Configure Environment Variables**:
+   Create a `.env` file in `packages/rag-memory/` (or copy `.env.example` to `.env`) and supply your API keys:
+   ```env
+   PINECONE_API_KEY=your_pinecone_api_key_here
+   GROQ_API_KEY=your_groq_api_key_here
+   PINECONE_INDEX_NAME=rag-memory-demo
+   ```
+
+   *Note: If no API keys are provided (or placeholder strings are left), the app automatically falls back to Mock mode for both Pinecone and LLM, enabling local dry-runs.*
+
+3. **Pinecone Index Configuration**:
+   If running in production, create a serverless index in your Pinecone console with:
+   - **Dimension**: `1536`
+   - **Metric**: `cosine`
+   - **Name**: `rag-memory-demo`
+
+## Running the Application
+
+All commands must be executed from the **root** of the monorepo workspace.
+
+### 1. Ingest Data
+To ingest the sample customer profile and meeting note CSV datasets:
+```bash
+uv run --directory packages/rag-memory python -m rag_memory.ingest
+```
+
+### 2. Start the Server
+Start the FastAPI server:
+```bash
+uv run --directory packages/rag-memory rag-memory-server
+```
+The server will start at `http://0.0.0.0:8000`.
+
+### 3. API Usage
+
+- **POST `/ingest`**:
+  ```bash
+  curl -X POST http://localhost:8000/ingest
+  ```
+
+- **POST `/chat`**:
+  ```bash
+  curl -X POST http://localhost:8000/chat \
+    -H "Content-Type: application/json" \
+    -d '{"user_id": "rep_001", "session_id": "session_001", "message": "What is the status of the Acme Corp renewal?"}'
+  ```
+
+## Running Tests
+
+To run the integration tests:
+```bash
+uv run pytest packages/rag-memory/tests/
+```
