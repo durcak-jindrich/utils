@@ -18,6 +18,7 @@ dependencies = [
     "ai-agent-tutorial",
     "mcp-linear-tickets",
     "rag-memory",
+    "pr-reviewer",
 ]
 
 [tool.uv.sources]
@@ -28,6 +29,7 @@ mcp-repo-context = { workspace = true }
 ai-agent-tutorial = { workspace = true }
 mcp-linear-tickets = { workspace = true }
 rag-memory = { workspace = true }
+pr-reviewer = { workspace = true }
 
 [project.optional-dependencies]
 dev = [
@@ -67,6 +69,7 @@ members = [
     "packages/ai-agent-tutorial",
     "packages/mcp-linear-tickets",
     "packages/rag-memory",
+    "packages/pr-reviewer",
 ]
 
 [dependency-groups]

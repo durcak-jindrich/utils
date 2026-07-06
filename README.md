@@ -42,6 +42,15 @@ uv run --directory packages/mcp-repo-context mcp-repo-context
 uv run --directory packages/mcp-linear-tickets src/mcp_linear_tickets/main.py
 ```
 
+### 5. PR Reviewer
+```bash
+# Run review CLI on security-flawed sample PR
+uv run --directory packages/pr-reviewer -m pr_reviewer.main --pr security
+
+# Run webhook receiver server
+uv run --directory packages/pr-reviewer -m pr_reviewer.main --webhook
+```
+
 ## Common Commands (Workspace-wide)
 
 | Task | Command | Description |
