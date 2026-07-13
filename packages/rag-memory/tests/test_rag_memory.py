@@ -130,3 +130,64 @@ def test_full_flow():
     assert "Message number 6" in answer
     assert "Acme Corp" in answer
     print(f"Verified new session retrieved episodic memory: {answer}")
+
+
+def test_hybrid_search_and_reranking_internals():
+    """Verify that hybrid search generates sparse vectors, queries the mock index correctly, and CrossEncoder rerank scores are applied."""
+    from rag_memory.config import get_bm25_encoder, get_cross_encoder, get_pinecone_index
+    from rag_memory.rag import query_documents
+    
+    # 1. Verify BM25 Encoder can encode queries and documents
+    bm25 = get_bm25_encoder()
+    # Fit it locally to test
+    bm25.fit(["The quick brown fox", "jumps over the lazy dog", "Acme Corp contract renewal"])
+    
+    sparse_doc = bm25.encode_documents("Acme Corp renewal details")
+    sparse_query = bm25.encode_queries("Acme Corp renewal")
+    
+    assert "indices" in sparse_doc and "values" in sparse_doc
+    assert "indices" in sparse_query and "values" in sparse_query
+    assert len(sparse_doc["indices"]) > 0
+    assert len(sparse_query["indices"]) > 0
+
+    # 2. Test MockCrossEncoder sorting logic
+    cross_encoder = get_cross_encoder()
+    # MockCrossEncoder uses word overlap to score
+    pairs = [
+        ("Acme Corp renewal", "Acme Corp contract renewal details on Monday"),
+        ("Acme Corp renewal", "Some unrelated message about a different topic")
+    ]
+    scores = cross_encoder.predict(pairs)
+    assert len(scores) == 2
+    assert scores[0] > scores[1]  # The first one should have higher overlap score
+
+    # 3. Test query_documents with fitted encoder and mock data
+    index = get_pinecone_index()
+    # Insert some dummy records into mock index with dense + sparse values
+    # Dimension is 1536
+    dummy_dense_1 = [0.1] * 1536
+    dummy_dense_2 = [0.0] * 1536
+    
+    dummy_sparse_1 = bm25.encode_documents("Acme Corp contract renewal is on track")
+    dummy_sparse_2 = bm25.encode_documents("Random unrelated chat about weather")
+    
+    vectors = [
+        {
+            "id": "doc_test_acme",
+            "values": dummy_dense_1,
+            "sparse_values": dummy_sparse_1,
+            "metadata": {"text": "Acme Corp contract renewal is on track", "company": "Acme Corp"}
+        },
+        {
+            "id": "doc_test_weather",
+            "values": dummy_dense_2,
+            "sparse_values": dummy_sparse_2,
+            "metadata": {"text": "Random unrelated chat about weather", "company": "Other"}
+        }
+    ]
+    index.upsert(vectors=vectors, namespace="documents")
+    
+    # Query for Acme Corp and verify we retrieve the Acme document first
+    context = query_documents("Acme Corp renewal")
+    assert "Acme Corp" in context
+    assert context.startswith("Acme Corp")

@@ -129,6 +129,33 @@ For complete data privacy or local development, you can run the review workflow 
 
 ---
 
+## Evaluation & Regression Testing
+
+We have built a dedicated evaluation and regression testing suite for the AI PR Reviewer agent under the new package `pr_reviewer_eval`. This uses a **Golden Dataset** (containing 5 realistic code diffs covering specific flaw types) evaluated by **three LLM-as-judge evaluators** (Issue Coverage, Noise Ratio, and Comment Quality) tracked with **LangSmith**.
+
+### 1. Configure LangSmith (Optional)
+To log experiments and trace execution on the LangSmith dashboard:
+```bash
+export LANGCHAIN_TRACING_V2="true"
+export LANGCHAIN_API_KEY="your-langsmith-api-key"
+export LANGCHAIN_PROJECT="pr-reviewer-eval"
+```
+
+### 2. Run the Evaluation Pipeline
+You can run the end-to-end evaluation loop in regression testing mode (which runs a baseline pass, saves the results, and then simulates/compares a degraded run to test regression alerts):
+```bash
+uv run -m pr_reviewer_eval.main
+```
+
+To run a single evaluation pass:
+```bash
+uv run -m pr_reviewer_eval.main --eval-only
+```
+
+If no `LANGCHAIN_API_KEY` is present, the pipeline runs in offline local simulation mode automatically, ensuring you can run evaluations immediately. Set `REAL_LLM=true` to call real LLM judges.
+
+---
+
 ## Testing
 
 The package includes a comprehensive suite of unit tests and mock integration tests.

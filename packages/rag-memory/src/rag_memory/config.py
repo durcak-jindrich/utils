@@ -22,6 +22,7 @@ else:
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 PINECONE_INDEX_NAME = os.environ.get("PINECONE_INDEX_NAME", "rag-memory-demo")
+BM25_PARAMS_PATH = pkg_root / "data" / "bm25_params.json"
 
 
 def is_placeholder(key: str) -> bool:
@@ -131,10 +132,73 @@ def get_pinecone_index():
     return pc.Index(PINECONE_INDEX_NAME)
 
 
+def compute_sparse_dot_product(sv1, sv2) -> float:
+    """Compute dot product of two sparse vectors represented as {"indices": ..., "values": ...}."""
+    if not sv1 or not sv2:
+        return 0.0
+    d1 = dict(zip(sv1.get("indices", []), sv1.get("values", [])))
+    d2 = dict(zip(sv2.get("indices", []), sv2.get("values", [])))
+    
+    score = 0.0
+    for idx, val in d1.items():
+        if idx in d2:
+            score += val * d2[idx]
+    return score
+
+
+class MockCrossEncoder:
+    """A mock CrossEncoder for testing/offline scenarios to avoid downloading models."""
+    def predict(self, pairs: list[tuple[str, str]]) -> list[float]:
+        scores = []
+        for query, doc in pairs:
+            q_words = set(query.lower().split())
+            d_words = set(doc.lower().split())
+            overlap = len(q_words.intersection(d_words))
+            scores.append(float(overlap) / (len(q_words) + 1))
+        return scores
+
+
+_cross_encoder_instance = None
+
+
+def get_cross_encoder():
+    """Return a singleton CrossEncoder model, or a MockCrossEncoder if MOCK_EMBEDDINGS=true."""
+    global _cross_encoder_instance
+    if _cross_encoder_instance is None:
+        if os.environ.get("MOCK_EMBEDDINGS", "false").lower() == "true":
+            logger.info("Using MockCrossEncoder (MOCK_EMBEDDINGS=true).")
+            _cross_encoder_instance = MockCrossEncoder()
+        else:
+            try:
+                from sentence_transformers import CrossEncoder
+                model_name = os.environ.get("RERANK_MODEL_NAME", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+                logger.info(f"Loading CrossEncoder: {model_name}")
+                _cross_encoder_instance = CrossEncoder(model_name)
+            except Exception as e:
+                logger.warning(f"Failed to load sentence-transformers CrossEncoder: {e}. Falling back to MockCrossEncoder.")
+                _cross_encoder_instance = MockCrossEncoder()
+    return _cross_encoder_instance
+
+
+def get_bm25_encoder():
+    """Return a BM25Encoder loaded from the parameters file, or a new empty one."""
+    from pinecone_text.sparse import BM25Encoder
+    encoder = BM25Encoder()
+    if BM25_PARAMS_PATH.exists():
+        try:
+            logger.info(f"Loading BM25 parameters from {BM25_PARAMS_PATH}")
+            encoder.load(str(BM25_PARAMS_PATH))
+        except Exception as e:
+            logger.warning(f"Failed to load BM25 parameters: {e}. Using new unfitted BM25Encoder.")
+    else:
+        logger.info(f"BM25 parameter file not found at {BM25_PARAMS_PATH}. BM25Encoder is unfitted.")
+    return encoder
+
+
 class MockPineconeIndex:
     """A mock implementation of Pinecone index for testing when no real credentials are set."""
     def __init__(self):
-        # Database structure: {namespace: {vector_id: {"values": list, "metadata": dict}}}
+        # Database structure: {namespace: {vector_id: {"values": list, "sparse_values": dict, "metadata": dict}}}
         self.db = {}
 
     def upsert(self, vectors, namespace):
@@ -142,18 +206,35 @@ class MockPineconeIndex:
             self.db[namespace] = {}
         
         for vec in vectors:
-            vec_id = vec[0]
-            values = vec[1]
-            metadata = vec[2] if len(vec) > 2 else {}
+            if isinstance(vec, dict):
+                vec_id = vec["id"]
+                values = vec["values"]
+                sparse_values = vec.get("sparse_values")
+                metadata = vec.get("metadata", {})
+            else:
+                # tuple/list format
+                vec_id = vec[0]
+                values = vec[1]
+                sparse_values = None
+                metadata = {}
+                if len(vec) == 3:
+                    # Could be (id, values, metadata)
+                    metadata = vec[2]
+                elif len(vec) == 4:
+                    # Could be (id, values, sparse_values, metadata)
+                    sparse_values = vec[2]
+                    metadata = vec[3]
+            
             self.db[namespace][vec_id] = {
                 "values": values,
+                "sparse_values": sparse_values,
                 "metadata": metadata
             }
         logger.info(f"[Mock DB] Upserted {len(vectors)} vectors to namespace '{namespace}'")
         return {"upserted_count": len(vectors)}
 
-    def query(self, vector, top_k, namespace, filter=None, include_metadata=True, include_values=False):
-        logger.info(f"[Mock DB] Querying namespace '{namespace}' with filter={filter}")
+    def query(self, vector=None, sparse_vector=None, top_k=5, namespace=None, filter=None, include_metadata=True, include_values=False):
+        logger.info(f"[Mock DB] Querying namespace '{namespace}' with filter={filter}, hybrid={sparse_vector is not None}")
         if namespace not in self.db:
             return {"matches": []}
             
@@ -163,14 +244,11 @@ class MockPineconeIndex:
             if filter:
                 match_filter = True
                 for f_key, f_val in filter.items():
-                    # Support simple dict comparison
                     if isinstance(f_val, dict):
-                        # Handle operator like $eq
                         if "$eq" in f_val:
                             if data["metadata"].get(f_key) != f_val["$eq"]:
                                 match_filter = False
                         else:
-                            # Unsupported complex filter in mock, default to True or False
                             pass
                     else:
                         if data["metadata"].get(f_key) != f_val:
@@ -178,19 +256,43 @@ class MockPineconeIndex:
                 if not match_filter:
                     continue
             
-            # Simple cosine similarity (dot product of normalized vectors)
-            v1 = np.array(vector)
-            v2 = np.array(data["values"])
-            similarity = float(np.dot(v1, v2))
+            dense_score = 0.0
+            if vector is not None and "values" in data and data["values"] is not None:
+                v1 = np.array(vector)
+                v2 = np.array(data["values"])
+                norm_v1 = np.linalg.norm(v1)
+                norm_v2 = np.linalg.norm(v2)
+                if norm_v1 > 0 and norm_v2 > 0:
+                    dense_score = float(np.dot(v1, v2) / (norm_v1 * norm_v2))
+                else:
+                    dense_score = 0.0
+
+            sparse_score = 0.0
+            if sparse_vector is not None and "sparse_values" in data and data["sparse_values"] is not None:
+                sparse_score = compute_sparse_dot_product(sparse_vector, data["sparse_values"])
+
+            # Compute hybrid score
+            if vector is not None and sparse_vector is not None:
+                # Scale dense to [0, 1] for typical cosine similarity of text embeddings
+                dense_score_normalized = (dense_score + 1.0) / 2.0
+                # Let's say alpha is 0.5
+                alpha = 0.5
+                score = alpha * dense_score_normalized + (1 - alpha) * sparse_score
+            elif vector is not None:
+                score = dense_score
+            else:
+                score = sparse_score
             
             match = {
                 "id": vec_id,
-                "score": similarity,
+                "score": score,
             }
             if include_metadata:
                 match["metadata"] = data["metadata"]
             if include_values:
                 match["values"] = data["values"]
+            if "sparse_values" in data:
+                match["sparse_values"] = data["sparse_values"]
             matches.append(match)
             
         # Sort matches by similarity score descending

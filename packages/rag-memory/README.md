@@ -8,13 +8,20 @@ This package is part of the `utils-workspace` monorepo.
 
 1. **In-Memory Session Store**: Maintains session history, last activity timestamps, and tracks message count.
 2. **FastAPI Endpoints**:
-   - `POST /ingest`: Loads customer data and meeting notes from CSV files, batch-embeds them, and upserts them to Pinecone (under namespace `documents`).
-   - `POST /chat`: Accepts chat messages for a user session, queries relevant documents and past memories, generates replies using ChatGroq (Meta Llama 3.3 70B), and triggers periodic/stale session summarizations.
-3. **Episodic Memory System**:
+   - `POST /ingest`: Loads customer data and meeting notes from CSV files, fits a local BM25Encoder, generates both dense and sparse embeddings, and batch-upserts them to Pinecone (under namespace `documents`).
+   - `POST /chat`: Accepts chat messages, queries relevant documents using hybrid search and reranking, queries episodic memory, and returns the response.
+3. **Sparse-Dense Hybrid Search**:
+   - **Dense Retrieval**: Captures overall semantic context and synonyms via OpenAI/Pinecone/local deterministic mock embeddings.
+   - **Sparse Retrieval**: Uses a local BM25Encoder (from `pinecone-text`) to capture exact keyword matches (e.g. names, IDs, specific terms).
+   - The system queries both models simultaneously to fetch the top 15 candidates.
+4. **Local CrossEncoder Reranking**:
+   - Retrieves the top 15 documents from the hybrid search and passes them to a local, open-source `sentence-transformers` Cross-Encoder model (`cross-encoder/ms-marco-MiniLM-L-6-v2`).
+   - The cross-encoder evaluates the deep query-document interaction and scores candidates. The top 5 candidates are returned to the LLM.
+5. **Episodic Memory System**:
    - Periodic summarization every 5 user messages.
    - Background monitor checks for sessions idle for >30 minutes, summarizes final details, saves to Pinecone namespace `memory`, and purges them.
    - Summaries are indexed and searchable, allowing future conversations to pull previous session contexts.
-4. **Mock Mode Fallbacks**: Auto-detects placeholder keys and runs fully in-memory with deterministic local embeddings so that tests can be run instantly offline.
+6. **Mock Mode Fallbacks**: Auto-detects placeholder keys and runs fully in-memory with deterministic local embeddings, mock BM25 indexing, and a mock overlap-based CrossEncoder reranker, enabling tests and dry-runs to execute instantly offline.
 
 ## Setup
 

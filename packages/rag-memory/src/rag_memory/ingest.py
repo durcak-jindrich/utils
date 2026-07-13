@@ -2,7 +2,7 @@ import os
 import uuid
 from pathlib import Path
 import pandas as pd
-from rag_memory.config import get_embedding_model, get_pinecone_index, logger
+from rag_memory.config import get_embedding_model, get_pinecone_index, BM25_PARAMS_PATH, logger
 
 # Path to the data directory relative to this package
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
@@ -99,18 +99,38 @@ def run_ingest() -> int:
         
     logger.info(f"Loaded {len(docs_to_ingest)} documents from CSV files. Generating embeddings...")
     
-    # Get embedding model and batch embed all documents
+    # Get embedding model and batch embed all documents (dense)
     embedding_model = get_embedding_model()
     texts = [doc["text"] for doc in docs_to_ingest]
     
-    # Batch embed all rows in one API call
+    logger.info("Generating dense embeddings...")
     embeddings = embedding_model.embed_documents(texts)
+    
+    # Initialize and fit BM25Encoder on the corpus of text
+    from pinecone_text.sparse import BM25Encoder
+    bm25 = BM25Encoder()
+    logger.info("Fitting BM25Encoder on document text corpus...")
+    bm25.fit(texts)
+    
+    # Save the fitted parameters to JSON
+    BM25_PARAMS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Saving BM25 parameters to {BM25_PARAMS_PATH}...")
+    bm25.dump(str(BM25_PARAMS_PATH))
+    
+    # Encode all documents using the fitted encoder (sparse)
+    logger.info("Generating sparse embeddings for documents...")
+    sparse_embeddings = [bm25.encode_documents(text) for text in texts]
     
     # Prepare vectors for Pinecone upsert
     vectors = []
     for i, doc in enumerate(docs_to_ingest):
         doc_id = f"doc_{uuid.uuid4().hex[:8]}_{i}"
-        vectors.append((doc_id, embeddings[i], doc["metadata"]))
+        vectors.append({
+            "id": doc_id,
+            "values": embeddings[i],
+            "sparse_values": sparse_embeddings[i],
+            "metadata": doc["metadata"]
+        })
         
     # Get Pinecone index and upsert to "documents" namespace
     index = get_pinecone_index()
